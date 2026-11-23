@@ -4,8 +4,8 @@ A concept redesign of secretsfl.com for Secrets Hideaway Resort & Spa in Kissimm
 
 **View it:** https://quinto55.github.io/Secrets-FL-redesign/
 
-- Best on a laptop or desktop in Chrome, full screen (F11).
+- Best on a laptop or desktop in Chrome, full screen (F11). It also runs on a phone, with lighter video.
 - Scroll to fly. Click **Sound** in the top bar, or press **M**, for the music.
-- The flight is about 80 MB of video, so give it a few seconds on the first visit.
+- The flight is about 80 MB of video on a laptop (about 19 MB on a phone), so give it a few seconds on the first visit.
 
 This is a concept, not the live site. Book a Room, passes and VIP open the current secretsfl.com. The flight and the people in it are AI-generated.

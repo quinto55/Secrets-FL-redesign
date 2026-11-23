@@ -455,6 +455,96 @@ body.past-flight .sw-route, body.past-flight .sw-scrollbar, body.past-flight .sw
 .js-reveal .reveal { opacity: 0; transform: translateY(12px); transition: opacity .9s cubic-bezier(.2, .7, .2, 1), transform .9s cubic-bezier(.2, .7, .2, 1); }
 .js-reveal .reveal.is-in { opacity: 1; transform: none; }
 
+/* ---------- added 2026-11-22: menu, skip link, cost calculator, map, phone action bar ---------- */
+/* Menu button: only where the nav links no longer fit (see the breakpoints below). */
+.nav__menu { display: none; align-items: center; justify-content: center; width: 44px; height: 44px; margin: 0 -10px 0 -8px; padding: 0;
+  background: none; border: 0; color: var(--ivory); cursor: pointer; }
+.nav__menu span, .nav__menu span::before, .nav__menu span::after { display: block; width: 22px; height: 1.5px; background: currentColor; transition: transform .25s, background .2s; }
+.nav__menu span { position: relative; }
+.nav__menu span::before, .nav__menu span::after { content: ""; position: absolute; left: 0; }
+.nav__menu span::before { top: -7px; }
+.nav__menu span::after { top: 7px; }
+.nav__menu[aria-expanded="true"] span { background: transparent; }
+.nav__menu[aria-expanded="true"] span::before { transform: translateY(7px) rotate(45deg); }
+.nav__menu[aria-expanded="true"] span::after { transform: translateY(-7px) rotate(-45deg); }
+.menu { position: fixed; inset: 0; z-index: 99; display: flex; flex-direction: column; justify-content: space-between; gap: 28px;
+  padding: calc(var(--nav-h) + 16px) var(--edge) calc(28px + env(safe-area-inset-bottom));
+  background: var(--night); overflow-y: auto; opacity: 0; transition: opacity .2s ease; }
+.menu[hidden] { display: none; }
+.menu.is-open { opacity: 1; }
+.menu__links { display: grid; }
+.menu__links a { font-family: var(--serif); font-weight: 500; font-size: clamp(1.8rem, 7.4vw, 2.6rem); line-height: 1.1;
+  text-decoration: none; color: var(--ivory); padding: 14px 0; border-bottom: 1px solid var(--hair); }
+.menu__actions { display: grid; gap: 12px; }
+body.menu-open { overflow: hidden; }
+body.menu-open .nav { background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.menu-open .nav__book, body.menu-open .nav__sound { visibility: hidden; }
+
+/* A visible way past the flight (the keyboard skip link is still first in the page). */
+.skipflight { position: fixed; right: var(--edge); bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 66;
+  font: 500 .72rem/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; text-decoration: none; color: var(--ivory);
+  padding: 10px 0 8px; border-bottom: 1px solid var(--hair-strong); opacity: .85; text-shadow: 0 1px 12px rgba(15, 10, 11, .85);
+  transition: opacity .3s, border-color .25s, visibility .3s; }
+.skipflight:hover { opacity: 1; border-bottom-color: var(--red); }
+.skipflight__short { display: none; }
+body.past-flight .skipflight, body.menu-open .skipflight { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* The agenda's fallback line (no JavaScript, or the calendar has run out). */
+.agenda__item--none { grid-template-columns: minmax(0, 1fr); }
+
+/* "What will it cost me?" */
+.cost { margin-bottom: clamp(48px, 5vw, 80px); padding: clamp(22px, 3vw, 40px); border: 1px solid var(--hair-strong); background: rgba(15, 10, 11, .45); }
+.cost[hidden] { display: none; }
+.cost .h3 { margin-bottom: 24px; }
+.cost__grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 5fr) minmax(0, 4fr); gap: 28px clamp(24px, 3vw, 48px); }
+.cost__set { border: 0; margin: 0; padding: 0; min-width: 0; }
+.cost__set legend { padding: 0; margin-bottom: 12px; font-size: .8rem; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--smoke); }
+.cost__opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.cost__opts + .cost__opts { margin-top: 10px; }
+.cost__opts label { position: relative; cursor: pointer; }
+.cost__opts input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.cost__opts span { display: block; padding: 11px 15px; border: 1px solid var(--hair-strong); border-radius: 2px; font-size: .95rem; line-height: 1.2;
+  color: var(--linen); white-space: nowrap; transition: border-color .2s, background .2s, color .2s; }
+.cost__opts label:hover span { border-color: var(--ivory); }
+.cost__opts input:checked + span { background: var(--ivory); border-color: var(--ivory); color: var(--night); font-weight: 500; }
+.cost__opts input:focus-visible + span { outline: 2px solid var(--ivory); outline-offset: 3px; }
+.cost__opts--days span { min-width: 3.4em; padding-inline: 10px; text-align: center; }
+.cost__opts label.is-today span { box-shadow: inset 0 -2px 0 var(--red); }
+.cost__result { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 36px; margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--hair); }
+.cost__total { margin: 0; display: flex; align-items: baseline; gap: 12px; }
+.cost__num { font-family: var(--serif); font-weight: 500; font-size: clamp(3rem, 5vw, 4.6rem); line-height: 1; font-variant-numeric: lining-nums; }
+.cost__unit { font-size: .9rem; color: var(--smoke); }
+.cost__detail { flex: 1 1 320px; min-width: 0; }
+.cost__lines { margin: 0; color: var(--ivory); }
+.cost__detail .fine { margin-top: 6px; }
+
+/* Locator map under "Find us". The plate keeps the drawing's 16:7 shape, so the pin and
+   the names (placed in % of the plate) stay on their roads at every window size. */
+.map { margin: clamp(40px, 5vw, 72px) 0 0; }
+.map__canvas { position: relative; display: block; overflow: hidden; aspect-ratio: 16 / 7; background: #120c0e;
+  border: 1px solid var(--hair); color: var(--ivory); text-decoration: none; }
+.map__plate { position: absolute; top: 0; left: 0; height: 100%; aspect-ratio: 16 / 7; }
+.map__plate img { width: 100%; height: 100%; max-width: none; }
+.map__label { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none;
+  font-size: .72rem; font-weight: 400; letter-spacing: .14em; text-transform: uppercase; color: var(--linen);
+  text-shadow: 0 0 6px #120c0e, 0 0 6px #120c0e, 0 0 10px #120c0e; }
+.map__label--road { color: var(--ivory); font-weight: 500; }
+.map__label--water { font-family: var(--serif); font-style: italic; font-size: 1rem; letter-spacing: .02em; text-transform: none; color: var(--smoke); }
+.map__pin { position: absolute; width: 0; height: 0; }
+.map__pin i { position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; background: var(--red-hi); box-shadow: 0 0 0 5px rgba(206, 20, 23, .3); }
+.map__pin i::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid var(--red-hi); animation: pin 2.6s ease-out infinite; }
+@keyframes pin { from { transform: scale(1); opacity: .9; } to { transform: scale(3.4); opacity: 0; } }
+.map__pin b { position: absolute; right: 18px; top: 14px; white-space: nowrap; font-family: var(--serif); font-weight: 500; font-size: 1.2rem; line-height: 1;
+  color: #fff; background: rgba(15, 10, 11, .9); border: 1px solid var(--hair-strong); padding: 9px 13px; }
+.map__go { position: absolute; right: 16px; bottom: 16px; padding: 12px 18px; background: rgba(15, 10, 11, .9); border: 1px solid rgba(243, 234, 219, .4); border-radius: 2px;
+  font: 500 .72rem/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; transition: border-color .2s; }
+.map__canvas:hover .map__go { border-color: var(--ivory); }
+.map figcaption { margin-top: 12px; font-size: .85rem; color: var(--smoke); }
+@media (prefers-reduced-motion: reduce) { .map__pin i::after { animation: none; opacity: 0; } }
+
+/* Phones: Book, Text and Directions stay one tap away once the flight has landed. */
+.actionbar { display: none; }
+
 /* ---------- smaller screens ---------- */
 @media (max-width: 1180px) {
   .footer__cols { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -505,3 +595,39 @@ body.past-flight .sw-route, body.past-flight .sw-scrollbar, body.past-flight .sw
 /* Small raised (R) and unbreakable phrases */
 .reg { font-family: var(--sans); font-size: .38em; font-weight: 400; font-style: normal; vertical-align: super; line-height: 0; margin-left: .06em; }
 .nowrap { white-space: nowrap; }
+
+/* ---------- added 2026-11-22: breakpoints for the new pieces ---------- */
+/* Six nav links stop fitting a little before the phone layout starts. */
+@media (max-width: 1040px) {
+  .nav__links { display: none; }
+  .nav__menu { display: inline-flex; }
+  .nav__sound-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (max-width: 1080px) {
+  .cost__grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 860px) {
+  .skipflight__long { display: none; }
+  .skipflight__short { display: inline; }
+  .cost__opts span { padding: 12px 13px; }
+  .cost__result { align-items: flex-start; flex-direction: column; }
+  .cost__detail { flex: none; }
+  /* Taller on a phone, centred on the pin; the far-off names would only crowd it. */
+  .map__canvas { aspect-ratio: 4 / 3; }
+  .map__plate { left: 50%; transform: translateX(-49.2%); }
+  .map__label--far { display: none; }
+  .map__pin b { font-size: 1.05rem; right: auto; left: 0; top: 20px; transform: translateX(-50%); }
+  .map__go { right: 10px; bottom: 10px; padding: 10px 14px; }
+  .actionbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 90; display: grid; grid-template-columns: 1.5fr 1fr 1.2fr; gap: 8px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); background: var(--night); border-top: 1px solid var(--hair-strong);
+    transform: translateY(110%); transition: transform .35s ease; }
+  body.past-flight .actionbar { transform: none; }
+  body.past-flight .nav__book { display: none; }
+  body.menu-open .actionbar { transform: translateY(110%); }
+  .actionbar a { display: flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 6px;
+    font: 500 .72rem/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; text-decoration: none; white-space: nowrap;
+    color: var(--ivory); border: 1px solid rgba(243, 234, 219, .4); border-radius: 2px; }
+  .actionbar a.actionbar__main { background: var(--red); border-color: var(--red); color: #fff; }
+  .footer { padding-bottom: calc(48px + 64px + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) { .actionbar, .menu { transition: none; } }

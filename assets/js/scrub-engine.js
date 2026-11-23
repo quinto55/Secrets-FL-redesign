@@ -87,6 +87,7 @@
        and config.dipText (a line shown inside the black dip).
      - The still poster no longer shifts sideways (the CCF stage offset left a strip).
      - A resize keeps the flight at the same place (scroll scales with the new vh).
+     - copyAt (per section): where in its leg a beat's words peak (default the middle).
    ========================================================================== */
 
 function mountScrollWorld(container, config) {
@@ -342,7 +343,13 @@ function mountScrollWorld(container, config) {
       else if (i === N - 1) cop = before ? 0 : smooth(pr / 0.4);       // holds CTA at the end
       // [Secrets] copyHold (0..0.4) keeps a mid-section copy beat fully opaque for that
       // much of the section either side of its centre, so it can be read at leisure.
-      else cop = (before || after) ? 0 : smooth(1 - Math.max(0, Math.abs(pr - 0.5) - HOLD) / (0.5 - HOLD));
+      // [Secrets] copyAt (0.1..0.9, default 0.5) moves a beat's words earlier or later in its
+      // leg, for a leg whose subject is on screen at the start rather than the middle.
+      else {
+        const ctr = SECTIONS[i].copyAt != null ? clamp(SECTIONS[i].copyAt, 0.1, 0.9) : 0.5;
+        const hw = Math.min(ctr, 1 - ctr), hold = HOLD * hw / 0.5;
+        cop = (before || after) ? 0 : smooth(1 - Math.max(0, Math.abs(pr - ctr) - hold) / (hw - hold));
+      }
       const c = copies[i];
       c.style.opacity = cop;
       c.style.transform = reduce ? 'none' : `translateY(${(0.5 - pr) * 4}vh)`;

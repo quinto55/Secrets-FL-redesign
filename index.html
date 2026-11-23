@@ -7,6 +7,17 @@
   <title>Secrets Hideaway Resort &amp; Spa | Florida’s adults-only hideaway</title>
   <meta name="description" content="Secrets Hideaway Resort &amp; Spa, Kissimmee, FL: a private, adults-only (21+) lifestyle resort with pool parties, a tiki bar, a nightclub, themed suites and nightly events. Redesign concept." />
   <meta name="theme-color" content="#0f0a0b" />
+  <!-- What a texted or emailed link shows. The image must be an absolute address. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Secrets Hideaway Resort &amp; Spa" />
+  <meta property="og:title" content="Secrets Hideaway Resort &amp; Spa | Florida’s adults-only hideaway" />
+  <meta property="og:description" content="A private, adults-only (21+) lifestyle resort in Kissimmee, Florida. Fly from the pool at golden hour to a suite at night. Redesign concept." />
+  <meta property="og:url" content="https://quinto55.github.io/Secrets-FL-redesign/" />
+  <meta property="og:image" content="https://quinto55.github.io/Secrets-FL-redesign/assets/img/share.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Secrets Hideaway from the air at golden hour: the pool, the pink loungers and the giant tiki hut" />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="icon" type="image/png" href="assets/img/favicon.png" />
   <!-- Fetch the fonts before the flight clips (served one request at a time by tools/serve.ps1).
        Skipped on file://, where a crossorigin preload is always blocked. -->
@@ -30,19 +41,40 @@
       <a href="#events" data-nav="events">Events</a>
       <a href="#stay" data-nav="stay">Stay</a>
       <a href="#vip" data-nav="vip">VIP</a>
+      <a href="#prices" data-nav="prices">Prices</a>
       <a href="#condos" data-nav="condos">Condos</a>
+      <a href="#contact" data-nav="contact">Find us</a>
     </nav>
     <button class="nav__sound" id="sound" type="button" aria-pressed="false" title="Music (M)">
       <span class="nav__sound-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
       <span class="nav__sound-label">Sound off</span>
     </button>
     <a class="btn btn--red nav__book" href="https://www.secretsfl.com/book-now-iframe#/room" target="_blank" rel="noopener">Book a Room</a>
+    <button class="nav__menu" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu" aria-label="Menu"><span aria-hidden="true"></span></button>
   </header>
+
+  <!-- The menu for phones and narrow windows (the nav links don't fit there) -->
+  <div class="menu" id="menu" hidden>
+    <nav class="menu__links" aria-label="Menu">
+      <a href="#events">Events</a>
+      <a href="#stay">Stay</a>
+      <a href="#vip">VIP</a>
+      <a href="#prices">Prices &amp; rules</a>
+      <a href="#condos">Secrets&nbsp;II condos</a>
+      <a href="#swinkster">Club Swinkster</a>
+      <a href="#contact">Find us</a>
+    </nav>
+    <div class="menu__actions">
+      <a class="btn btn--red" href="https://www.secretsfl.com/book-now-iframe#/room" target="_blank" rel="noopener">Book a Room</a>
+      <a class="btn btn--line" href="sms:8445636969">Text 844.563.6969</a>
+    </div>
+  </div>
 
   <!-- The flight: six scroll-scrubbed legs (assets/flight/L1-L6.mp4), built by assets/js/site.js -->
   <div id="top"></div>
   <h1 class="sr-only">Secrets Hideaway Resort &amp; Spa, Kissimmee, Florida: a private, adults-only (21+) membership resort</h1>
   <div id="world" class="world" role="region" aria-label="A flight through Secrets Hideaway, from the pool at golden hour to a suite at night"></div>
+  <a class="skipflight" href="#events" aria-label="Skip to what’s on"><span class="skipflight__long">Skip to what’s on</span><span class="skipflight__short">Skip</span> <span aria-hidden="true">&darr;</span></a>
 
   <main class="page" id="main">
 
@@ -58,19 +90,12 @@
           <div class="agenda reveal" aria-labelledby="agenda-h">
             <h3 id="agenda-h" class="h3">Coming up</h3>
             <ol class="agenda__list" id="agenda">
-              <!-- Rendered from assets/js/data.js (the live calendar, crawled 2026-10-16/17). Static fallback: -->
-              <li class="agenda__item">
-                <div class="agenda__date"><span class="agenda__num">22</span><span class="agenda__mon">Oct</span></div>
+              <!-- Rendered from assets/js/data.js (the live calendar, crawled 2026-10-16/17).
+                   This line shows only without JavaScript or once that calendar has run out. -->
+              <li class="agenda__item agenda__item--none">
                 <div class="agenda__body">
-                  <p class="agenda__meta">Takeover, Oct 22 to Nov 1</p>
-                  <h4 class="agenda__title"><a href="https://www.secretsfl.com/groups/oct-22-25-hallowswing-week-1" target="_blank" rel="noopener">Hallowswing® 17</a></h4>
-                </div>
-              </li>
-              <li class="agenda__item">
-                <div class="agenda__date"><span class="agenda__num">5</span><span class="agenda__mon">Nov</span></div>
-                <div class="agenda__body">
-                  <p class="agenda__meta">Takeover, Nov 5 to 8</p>
-                  <h4 class="agenda__title"><a href="https://www.secretsfl.com/groups/nov-5-8-i-candy-hallowsweet" target="_blank" rel="noopener">i.Candy Hallowsweet Takeover</a></h4>
+                  <h4 class="agenda__title">A themed party every Friday and Saturday night</h4>
+                  <p class="agenda__detail">Pool parties every weekend, and takeovers that fill the whole resort. The dates are on the full calendar.</p>
                 </div>
               </li>
             </ol>
@@ -170,6 +195,54 @@
           <p class="lead">Secrets is a private members club for adults 21 and over. Entry is priced per night and per guest, before membership.</p>
         </div>
 
+        <!-- "What will it cost me?": reads the three tables below (assets/js/site.js, section 7). Shown by the script. -->
+        <form class="cost reveal" id="cost" aria-labelledby="cost-h" hidden>
+          <h3 id="cost-h" class="h3">What will it cost me?</h3>
+          <div class="cost__grid">
+            <fieldset class="cost__set">
+              <legend>Who’s coming</legend>
+              <div class="cost__opts">
+                <label><input type="radio" name="who" value="couple" checked /><span>A couple</span></label>
+                <label><input type="radio" name="who" value="lady" /><span>A single lady</span></label>
+                <label><input type="radio" name="who" value="man" /><span>A single man</span></label>
+              </div>
+            </fieldset>
+            <fieldset class="cost__set">
+              <legend>When</legend>
+              <div class="cost__opts cost__opts--days">
+                <label><input type="radio" name="dow" value="1" /><span>Mon</span></label>
+                <label><input type="radio" name="dow" value="2" /><span>Tue</span></label>
+                <label><input type="radio" name="dow" value="3" /><span>Wed</span></label>
+                <label><input type="radio" name="dow" value="4" /><span>Thu</span></label>
+                <label><input type="radio" name="dow" value="5" /><span>Fri</span></label>
+                <label><input type="radio" name="dow" value="6" /><span>Sat</span></label>
+                <label><input type="radio" name="dow" value="0" /><span>Sun</span></label>
+              </div>
+              <div class="cost__opts">
+                <label><input type="radio" name="time" value="night" checked /><span>Night, 6pm to 2am</span></label>
+                <label><input type="radio" name="time" value="day" /><span>Daytime, 11am to 5pm</span></label>
+              </div>
+            </fieldset>
+            <fieldset class="cost__set">
+              <legend>Membership</legend>
+              <div class="cost__opts">
+                <label><input type="radio" name="mem" value="1" checked /><span>New: 1 month</span></label>
+                <label><input type="radio" name="mem" value="2" /><span>6 months</span></label>
+                <label><input type="radio" name="mem" value="3" /><span>1 year</span></label>
+                <label><input type="radio" name="mem" value="0" /><span>Already a member</span></label>
+              </div>
+            </fieldset>
+          </div>
+          <div class="cost__result" aria-live="polite">
+            <p class="cost__total"><span class="cost__num" id="cost-total"></span><span class="cost__unit">before tax</span></p>
+            <div class="cost__detail">
+              <p class="cost__lines" id="cost-lines"></p>
+              <p class="fine" id="cost-note"></p>
+            </div>
+            <a class="btn btn--line btn--sm" href="https://www.secretsfl.com/prices" target="_blank" rel="noopener">Get passes</a>
+          </div>
+        </form>
+
         <div class="prices__grid">
           <div class="price-block reveal">
             <h3 class="h3">Night entry <span class="h3__note">6pm to 2am</span></h3>
@@ -179,7 +252,7 @@
               <thead><tr><th scope="col">Night</th><th scope="col">Couples</th><th scope="col">Single ladies</th><th scope="col">Single men</th></tr></thead>
               <tbody>
                 <tr data-dow="1"><th scope="row">Monday</th><td>$10</td><td>$5</td><td>$99</td></tr>
-                <tr data-dow="2"><th scope="row">Tuesday</th><td colspan="3" class="ptable__span">$25 a person, plus tax</td></tr>
+                <tr data-dow="2" data-per-person="25"><th scope="row">Tuesday</th><td colspan="3" class="ptable__span">$25 a person, plus tax</td></tr>
                 <tr data-dow="3"><th scope="row">Wednesday</th><td>$10</td><td>Free</td><td>$99</td></tr>
                 <tr data-dow="4"><th scope="row">Thursday</th><td>$25</td><td>$15</td><td>$99</td></tr>
                 <tr data-dow="5"><th scope="row">Friday</th><td>$40</td><td>$15</td><td>$199</td></tr>
@@ -200,27 +273,27 @@
           <div class="price-side">
             <div class="price-block reveal">
               <h3 class="h3">Daytime passes <span class="h3__note">11am to 5pm</span></h3>
-              <table class="ptable ptable--compact">
+              <table class="ptable ptable--compact" id="day-table">
                 <caption class="sr-only">Daytime pass prices</caption>
                 <colgroup><col class="ptable__c1" /><col /><col /><col /></colgroup>
                 <thead><tr><th scope="col">Days</th><th scope="col">Couples</th><th scope="col">Single ladies</th><th scope="col">Single men</th></tr></thead>
                 <tbody>
-                  <tr><th scope="row">Mon to Thu</th><td>$10</td><td>$5</td><td>$99</td></tr>
-                  <tr><th scope="row">Fri and Sat</th><td>$35</td><td>$10</td><td>$99</td></tr>
-                  <tr><th scope="row">Sunday</th><td>$35</td><td>$15</td><td>$99</td></tr>
+                  <tr data-dows="1 2 3 4"><th scope="row">Mon to Thu</th><td>$10</td><td>$5</td><td>$99</td></tr>
+                  <tr data-dows="5 6"><th scope="row">Fri and Sat</th><td>$35</td><td>$10</td><td>$99</td></tr>
+                  <tr data-dows="0"><th scope="row">Sunday</th><td>$35</td><td>$15</td><td>$99</td></tr>
                 </tbody>
               </table>
             </div>
             <div class="price-block reveal">
               <h3 class="h3">Membership</h3>
-              <table class="ptable ptable--compact">
+              <table class="ptable ptable--compact" id="mem-table">
                 <caption class="sr-only">Membership fees</caption>
                 <colgroup><col class="ptable__c1" /><col /><col /><col /></colgroup>
                 <thead><tr><th scope="col"></th><th scope="col">1 month</th><th scope="col">6 months</th><th scope="col">1 year</th></tr></thead>
                 <tbody>
-                  <tr><th scope="row">Couples</th><td>$50</td><td>$270</td><td>$480</td></tr>
-                  <tr><th scope="row">Single ladies</th><td>$25</td><td>$120</td><td>$180</td></tr>
-                  <tr><th scope="row">Single men</th><td>$169</td><td>$954</td><td>$1,680</td></tr>
+                  <tr data-who="couple"><th scope="row">Couples</th><td>$50</td><td>$270</td><td>$480</td></tr>
+                  <tr data-who="lady"><th scope="row">Single ladies</th><td>$25</td><td>$120</td><td>$180</td></tr>
+                  <tr data-who="man"><th scope="row">Single men</th><td>$169</td><td>$954</td><td>$1,680</td></tr>
                 </tbody>
               </table>
             </div>
@@ -343,6 +416,25 @@
           <figcaption>28.2889° N, 81.3568° W</figcaption>
         </figure>
       </div>
+      <!-- Locator map: assets/img/map.svg is drawn by tools/build-map.py, which also prints these positions. -->
+      <div class="wrap">
+        <figure class="map reveal">
+          <a class="map__canvas" href="https://www.google.com/maps/dir//Secrets+Hideaway+Resort+%26+Spa+%2F+Club+Secret,+2145+E+Irlo+Bronson+Memorial+Hwy,+Kissimmee,+FL+34744/@28.289299,-81.3544,15z/data=!4m15!1m6!3m5!1s0x0:0x4df3c9c0d6d59996!2sSecrets+Hideaway+Resort+%26+Spa+%2F+Club+Secret!8m2!3d28.288883!4d-81.356771!4m7!1m0!1m5!1m1!1s0x88dd85e9522b31b9:0x4df3c9c0d6d59996!2m2!1d-81.356771!2d28.288883?hl=en-US" target="_blank" rel="noopener" aria-label="Get directions to Secrets Hideaway (opens Google Maps)">
+            <span class="map__plate">
+              <img src="assets/img/map.svg" alt="Map: Secrets Hideaway is on US 192 in Kissimmee, just west of Florida’s Turnpike, between Lake Tohopekaliga and East Lake Tohopekaliga." width="1600" height="700" loading="lazy" />
+              <span class="map__label map__label--road" style="left:14%;top:29.4%" aria-hidden="true">US 192</span>
+              <span class="map__label map__label--road" style="left:45.6%;top:20%" aria-hidden="true">Florida’s Turnpike</span>
+              <span class="map__label map__label--place map__label--far" style="left:27.1%;top:41%" aria-hidden="true">Downtown Kissimmee</span>
+              <span class="map__label map__label--place map__label--far" style="left:82.1%;top:89%" aria-hidden="true">St. Cloud</span>
+              <span class="map__label map__label--water" style="left:34.3%;top:76%" aria-hidden="true">Lake Tohopekaliga</span>
+              <span class="map__label map__label--water map__label--far" style="left:78.2%;top:36%" aria-hidden="true">East Lake Tohopekaliga</span>
+              <span class="map__pin" style="left:49.2%;top:50%" aria-hidden="true"><i></i><b>Secrets Hideaway</b></span>
+            </span>
+            <span class="map__go" aria-hidden="true">Get directions</span>
+          </a>
+          <figcaption>On US 192, just west of Florida’s Turnpike. Map data © <a class="link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</figcaption>
+        </figure>
+      </div>
     </section>
 
     <!-- ============================== CLOSING ============================== -->
@@ -440,6 +532,13 @@
       </div>
     </div>
   </footer>
+
+  <!-- Phones: the three things people do, always one tap away once the flight has landed -->
+  <nav class="actionbar" aria-label="Quick actions">
+    <a class="actionbar__main" href="https://www.secretsfl.com/book-now-iframe#/room" target="_blank" rel="noopener">Book a Room</a>
+    <a href="sms:8445636969">Text</a>
+    <a href="https://www.google.com/maps/dir//Secrets+Hideaway+Resort+%26+Spa+%2F+Club+Secret,+2145+E+Irlo+Bronson+Memorial+Hwy,+Kissimmee,+FL+34744/@28.289299,-81.3544,15z/data=!4m15!1m6!3m5!1s0x0:0x4df3c9c0d6d59996!2sSecrets+Hideaway+Resort+%26+Spa+%2F+Club+Secret!8m2!3d28.288883!4d-81.356771!4m7!1m0!1m5!1m1!1s0x88dd85e9522b31b9:0x4df3c9c0d6d59996!2m2!1d-81.356771!2d28.288883?hl=en-US" target="_blank" rel="noopener">Directions</a>
+  </nav>
 
   <script src="assets/js/scrub-engine.js"></script>
   <script src="assets/js/data.js"></script>

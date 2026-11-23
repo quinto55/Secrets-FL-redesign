@@ -8,8 +8,9 @@
 
   /* ------------------------------------------------------------------
      1. Dates. "Today" is the viewer's local date, so the demo stays right
-        on whatever day it is shown. If the calendar data has run out,
-        fall back to its first date.
+        on whatever day it is shown. Once the calendar data has run out
+        (it ends 2027-04-30) nothing dated is shown: the agenda keeps its
+        evergreen line and the flight's event beat turns generic.
      ------------------------------------------------------------------ */
   var EVENTS = (window.SECRETS_EVENTS || []).slice();
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -21,8 +22,6 @@
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
   var today = iso(new Date());
-  var lastDate = EVENTS.length ? EVENTS[EVENTS.length - 1].date : today;
-  if (EVENTS.length && today > lastDate) today = EVENTS[0].date;
   var todayDow = parse(today).getDay();
   var tomorrow = addDays(today, 1);
 
@@ -113,7 +112,7 @@
   var flight = { index: 0, target: 0, duration: 0 };   // where the camera is (for the music, 3b)
   if (world && window.mountScrollWorld) {
     var beat = eventBeat();
-    beat.still = 'assets/flight/K5.jpg'; beat.clip = 'assets/flight/L5.mp4'; beat.linger = 0.25;
+    beat.still = 'assets/flight/K5.jpg'; beat.clip = 'assets/flight/L5.mp4'; beat.clipMobile = 'assets/flight/m/L5.mp4'; beat.linger = 0.25;
     window.mountScrollWorld(world, {
       nav: false,
       atmosphere: false,
@@ -129,7 +128,7 @@
       sections: [
         {
           id: 'arrival', label: 'Arrival', cls: 'beat--hero',
-          still: 'assets/flight/K1.jpg', clip: 'assets/flight/L1.mp4',
+          still: 'assets/flight/K1.jpg', clip: 'assets/flight/L1.mp4', clipMobile: 'assets/flight/m/L1.mp4',
           scroll: 1.7,
           eyebrow: 'Kissimmee, Florida · Private membership resort · 21+',
           title: 'Florida’s adults-only hideaway.',
@@ -137,15 +136,16 @@
         },
         {
           id: 'pool', label: 'The pool', cls: 'beat--pool',
-          still: 'assets/flight/K2.jpg', clip: 'assets/flight/L2.mp4',
+          still: 'assets/flight/K2.jpg', clip: 'assets/flight/L2.mp4', clipMobile: 'assets/flight/m/L2.mp4',
           linger: 0.25,
+          copyAt: 0.28,      // the words peak over the pool, and are gone before the roof
           eyebrow: 'The pool',
           title: 'The weekend starts poolside.',
           body: 'Pool parties Friday to Sunday, 10am to 5pm, with a DJ on the deck. Not staying the night? Members can buy a day pass.'
         },
         {
           id: 'tiki', label: 'The tiki bar', cls: 'beat--tiki',
-          still: 'assets/flight/K3.jpg', clip: 'assets/flight/L3.mp4',
+          still: 'assets/flight/K3.jpg', clip: 'assets/flight/L3.mp4', clipMobile: 'assets/flight/m/L3.mp4',
           linger: 0.25,
           eyebrow: 'The tiki bar',
           title: 'Then the lights go down.',
@@ -154,7 +154,7 @@
         },
         {
           id: 'club', label: 'The nightclub', cls: 'beat--club',
-          still: 'assets/flight/K4.jpg', clip: 'assets/flight/L4.mp4',
+          still: 'assets/flight/K4.jpg', clip: 'assets/flight/L4.mp4', clipMobile: 'assets/flight/m/L4.mp4',
           linger: 0.25,
           eyebrow: 'The nightclub',
           title: 'The party moves inside.',
@@ -163,7 +163,7 @@
         beat,
         {
           id: 'suite', label: 'Your suite', cls: 'beat--suite',
-          still: 'assets/flight/K7.jpg', clip: 'assets/flight/L6.mp4',
+          still: 'assets/flight/K7.jpg', clip: 'assets/flight/L6.mp4', clipMobile: 'assets/flight/m/L6.mp4',
           scroll: 2.0,       // a long, slow landing so the Book a Room moment holds
           eyebrow: 'Your suite',
           title: 'Stay the night. Stay the weekend.',
@@ -188,18 +188,48 @@
   /* ------------------------------------------------------------------
      3b. Sound: off until the speaker is tapped (or M is pressed). The pool
          track plays by day, fades as the tiki lights go down (L3, 1 s to
-         3 s into the clip), and the club track hits as they come back up
-         (3 s to 4 s), from its first bar. Softer in the suite, softer
+         3 s into the clip), and the club track hits as they come back up:
+         it waits until they are half up (3.5 s), then comes in at once
+         from its first bar. Softer in the suite, softer
          again once the page is up. Plain <audio>, so it also works from disk.
+         On the demo laptop (localhost or opened from disk) it first tries
+         assets/audio/private/, a git-ignored folder for a licensed track
+         that must not be published, and falls back to the standard loops.
+         iPhone: a track can only be started by a tap, so the first tap
+         starts both (the silent one muted, then parked), and since iOS
+         ignores an element's volume the tracks switch cleanly instead of
+         fading: pool off as the lights go down, club on as they come up.
+         (Written from the platform's rules; not yet heard on a real iPhone.)
      ------------------------------------------------------------------ */
   var soundBtn = document.getElementById('sound');
   var tracks = null, soundOn = false, lastT = 0;
   var MASTER = 0.9, TAU = 0.25;   // overall level; volume glide time constant (s)
   function ease01(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
-  function makeTrack(src, rewind) {
-    var a = new Audio(src);
+  // iOS reports volume 1 whatever is set.
+  var CAN_FADE = (function () { try { var a = new Audio(); a.volume = 0.5; return a.volume === 0.5; } catch (e) { return true; } })();
+  var LOCAL_DEMO = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  function makeTrack(name, rewind) {
+    var std = 'assets/audio/' + name + '.mp3';
+    var a = new Audio(LOCAL_DEMO ? 'assets/audio/private/' + name + '.mp3' : std);
     a.loop = true; a.preload = 'auto'; a.volume = 0;
-    return { el: a, level: 0, rewind: rewind };
+    if (LOCAL_DEMO) a.addEventListener('error', function once() {   // no private track here: use the standard loop
+      a.removeEventListener('error', once); a.src = std; a.load();
+    });
+    return { el: a, level: 0, rewind: rewind, on: false, primed: false };
+  }
+  // Inside the first tap: start a track that is silent right now, muted, and park it again,
+  // so it may be started later without a tap.
+  function prime(tr) {
+    if (tr.primed) return;
+    tr.primed = true;
+    var el = tr.el;
+    el.muted = true;
+    var done = function () {
+      if (!tr.on) { el.pause(); if (tr.rewind) { try { el.currentTime = 0; } catch (e) {} } }
+      el.muted = false;
+    };
+    var p; try { p = el.play(); } catch (e) { el.muted = false; return; }
+    if (p && p.then) p.then(done, function () { el.muted = false; }); else done();
   }
   function soundTargets() {
     var i = flight.index, t = flight.target * (flight.duration || 10), pool = 0, club = 0;
@@ -209,21 +239,26 @@
     var top = document.getElementById('main').getBoundingClientRect().top;
     var page = 1 - 0.55 * ease01(1 - top / window.innerHeight);   // the page rising over the suite
     var m = soundOn ? MASTER * page : 0;
-    return { pool: pool * m, club: club * m };
+    return { pool: pool * m, club: club * m, rawPool: soundOn ? pool : 0, rawClub: soundOn ? club : 0 };
   }
   function soundFrame(now) {
     var dt = lastT ? Math.min(0.1, (now - lastT) / 1000) : 0.016, k = 1 - Math.exp(-dt / TAU), busy = false;
     lastT = now;
     var tg = soundTargets();
     ['pool', 'club'].forEach(function (n) {
-      var tr = tracks[n], want = tg[n];
-      tr.level += (want - tr.level) * k;
+      var tr = tracks[n], want = tg[n], raw = tg[n === 'pool' ? 'rawPool' : 'rawClub'];
+      // A drop should land, not fade in: the club track stays parked until the lights are
+      // half up, then comes in at once from its first bar. (It still fades out normally.)
+      if (tr.rewind && tr.level === 0 && raw <= 0.5) want = 0;
+      tr.level += (want - tr.level) * (tr.rewind && want > tr.level ? 1 - Math.exp(-dt / 0.05) : k);
       if (Math.abs(want - tr.level) < 0.004) tr.level = want;
-      if (tr.level > 0 || want > 0) {
+      // No volume control (iPhone): on or off, switching at the halfway point of a fade.
+      tr.on = CAN_FADE ? (tr.level > 0 || want > 0) : raw > 0.5;
+      if (tr.on) {
         busy = true;
         if (tr.el.paused) { var p = tr.el.play(); if (p && p.catch) p.catch(function () {}); }
-        tr.el.volume = Math.max(0, Math.min(1, tr.level));
-      } else if (!tr.el.paused) {
+        if (CAN_FADE) tr.el.volume = Math.max(0, Math.min(1, tr.level));
+      } else if (!tr.el.paused && !tr.el.muted) {
         // Silent: park it. The club starts again from its first bar, so the
         // lights coming up always land on a downbeat.
         tr.el.pause(); tr.el.volume = 0;
@@ -234,7 +269,7 @@
   }
   function setSound(on) {
     if (!soundBtn) return;
-    if (!tracks) tracks = { pool: makeTrack('assets/audio/pool.mp3', false), club: makeTrack('assets/audio/club.mp3', true) };
+    if (!tracks) tracks = { pool: makeTrack('pool', false), club: makeTrack('club', true) };
     var wasIdle = !soundOn && tracks.pool.level === 0 && tracks.club.level === 0;
     soundOn = on;
     soundBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -243,7 +278,8 @@
       // Start the audible track inside the click itself, so the browser's autoplay rule is met.
       var tg = soundTargets();
       ['pool', 'club'].forEach(function (n) {
-        if (tg[n] > 0) { var p = tracks[n].el.play(); if (p && p.catch) p.catch(function () {}); }
+        if (tg[n] > 0) { tracks[n].on = true; tracks[n].primed = true; var p = tracks[n].el.play(); if (p && p.catch) p.catch(function () {}); }
+        else prime(tracks[n]);
       });
     }
     if (wasIdle && on) requestAnimationFrame(soundFrame);
@@ -333,7 +369,7 @@
       return '<li class="agenda__item agenda__item--multi">' + date +
         '<div class="agenda__body">' + meta + list + '</div><div></div></li>';
     }).join('');
-    if (html) host.innerHTML = html;
+    if (html) host.innerHTML = html;   // nothing left to list: the page's own evergreen line stays
   }
 
   /* "Every week": mark today, and name the coming Friday and Saturday themes by date. */
@@ -400,6 +436,7 @@
     if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
     var a = ev.target.closest ? ev.target.closest('a[href^="#"]') : null;
     if (!a) return;
+    closeMenu();
     var id = a.getAttribute('href').slice(1);
     var el = id && id !== 'top' ? document.getElementById(id) : null;
     if (id && id !== 'top' && !el) return;
@@ -462,7 +499,104 @@
     });
   }
 
+  /* ------------------------------------------------------------------
+     7. The menu for phones and narrow windows.
+     ------------------------------------------------------------------ */
+  var menu = document.getElementById('menu'), menuBtn = document.getElementById('menu-btn'), menuTimer = 0;
+  function openMenu() {
+    if (!menu || !menuBtn || !menu.hidden) return;
+    clearTimeout(menuTimer);
+    menu.hidden = false;
+    document.body.classList.add('menu-open');
+    menuBtn.setAttribute('aria-expanded', 'true');
+    menuBtn.setAttribute('aria-label', 'Close the menu');
+    requestAnimationFrame(function () { menu.classList.add('is-open'); });
+    var first = menu.querySelector('a'); if (first) first.focus({ preventScroll: true });
+  }
+  function closeMenu(refocus) {
+    if (!menu || !menuBtn || menu.hidden) return;
+    menu.classList.remove('is-open');
+    document.body.classList.remove('menu-open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.setAttribute('aria-label', 'Menu');
+    menuTimer = setTimeout(function () { menu.hidden = true; }, reduce ? 0 : 200);
+    if (refocus) menuBtn.focus({ preventScroll: true });
+  }
+  if (menu && menuBtn) {
+    menuBtn.addEventListener('click', function () { if (menu.hidden) openMenu(); else closeMenu(true); });
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeMenu(true); });
+    menu.addEventListener('click', function (ev) { if (ev.target.closest && ev.target.closest('a')) closeMenu(); });
+    // The window grew past the point where the button shows: don't leave the menu open behind it.
+    window.addEventListener('resize', function () { if (!menu.hidden && getComputedStyle(menuBtn).display === 'none') closeMenu(); });
+  }
+
+  /* ------------------------------------------------------------------
+     8. "What will it cost me?" Reads the three price tables on the page,
+        so there is one copy of every price. Tuesday night is priced per
+        person. Newbie Night (Thursday): a new couple pays $45 for entry
+        and a one-month membership together (from "Every week").
+     ------------------------------------------------------------------ */
+  var NEWBIE = { dow: 4, who: 'couple', mem: 1, total: 45 };
+  function money(t) { if (/free/i.test(t)) return 0; var m = /\$\s*([\d,]+)/.exec(t); return m ? +m[1].replace(/,/g, '') : null; }
+  function dollars(n) { return n === 0 ? 'free' : '$' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function setupCost() {
+    var form = document.getElementById('cost');
+    var night = document.getElementById('night-table'), day = document.getElementById('day-table'), mem = document.getElementById('mem-table');
+    if (!form || !night || !day || !mem) return;
+    var COL = { couple: 0, lady: 1, man: 2 };
+    var WHO = { couple: 'a couple', lady: 'a single lady', man: 'a single man' };
+    var MEM = ['', 'one-month', 'six-month', 'one-year'];
+    function nightPrice(dow, who) {
+      var tr = night.querySelector('tr[data-dow="' + dow + '"]'); if (!tr) return null;
+      var per = tr.getAttribute('data-per-person');
+      if (per) return { amount: +per * (who === 'couple' ? 2 : 1), per: +per };
+      var td = tr.querySelectorAll('td')[COL[who]]; var v = td ? money(td.textContent) : null;
+      return v == null ? null : { amount: v };
+    }
+    function dayPrice(dow, who) {
+      var rows = day.querySelectorAll('tr[data-dows]');
+      for (var i = 0; i < rows.length; i++) {
+        if ((' ' + rows[i].getAttribute('data-dows') + ' ').indexOf(' ' + dow + ' ') === -1) continue;
+        var td = rows[i].querySelectorAll('td')[COL[who]]; var v = td ? money(td.textContent) : null;
+        return v == null ? null : { amount: v };
+      }
+      return null;
+    }
+    function memPrice(who, term) {
+      var tr = mem.querySelector('tr[data-who="' + who + '"]'); if (!tr) return null;
+      var td = tr.querySelectorAll('td')[term - 1]; return td ? money(td.textContent) : null;
+    }
+    function val(name) { var el = form.querySelector('input[name="' + name + '"]:checked'); return el ? el.value : null; }
+    var totalEl = document.getElementById('cost-total'), linesEl = document.getElementById('cost-lines'), noteEl = document.getElementById('cost-note');
+    function update() {
+      var who = val('who'), dow = +val('dow'), time = val('time'), term = +val('mem');
+      var entry = time === 'day' ? dayPrice(dow, who) : nightPrice(dow, who);
+      var m = term ? memPrice(who, term) : 0;
+      if (!entry || m == null) { form.hidden = true; return; }
+      var when = (dow === todayDow ? (time === 'day' ? 'Today' : 'Tonight') : DAY[dow] + (time === 'day' ? ' daytime' : ' night'));
+      var entryText = (time === 'day' ? 'Day pass' : 'Night entry') + ' for ' + WHO[who] + ', ' + dollars(entry.amount) + (entry.per && who === 'couple' ? ' ($' + entry.per + ' a person)' : '');
+      var total = entry.amount + m, note = [];
+      if (time === 'night' && term === NEWBIE.mem && dow === NEWBIE.dow && who === NEWBIE.who && NEWBIE.total < total) {
+        total = NEWBIE.total;
+        linesEl.textContent = when + ': Newbie Night. $' + NEWBIE.total + ' covers a new couple’s entry and a one-month membership.';
+      } else {
+        linesEl.textContent = when + ': ' + entryText + (term ? ', plus a ' + MEM[term] + ' membership, ' + dollars(m) + '.' : '.');
+      }
+      if (time === 'night') note.push('Night prices are for entry before 11pm.');
+      note.push(term ? 'Memberships are approved on site: 21 and over, with photo ID.' : 'Every guest needs a current membership.');
+      totalEl.textContent = total === 0 ? 'Free' : dollars(total);
+      noteEl.textContent = note.join(' ');
+    }
+    var todayInput = form.querySelector('input[name="dow"][value="' + todayDow + '"]');
+    if (todayInput) { todayInput.checked = true; todayInput.parentNode.classList.add('is-today'); }
+    form.addEventListener('change', update);
+    form.addEventListener('submit', function (ev) { ev.preventDefault(); });
+    form.hidden = false;
+    update();
+  }
+
   renderAgenda();
+  setupCost();
   renderWeekly();
   markTonight();
   fitWeekly();
