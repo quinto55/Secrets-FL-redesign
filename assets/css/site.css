@@ -266,6 +266,15 @@ body.past-flight .sw-route, body.past-flight .sw-scrollbar, body.past-flight .sw
   content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 18vh; pointer-events: none;
   background: linear-gradient(180deg, rgba(15, 10, 11, 0) 0%, rgba(15, 10, 11, .75) 60%, var(--night) 100%);
 }
+/* The lamp (assets/js/lamp.js): one full-screen layer that sticks to the screen but lives
+   inside the page box, so it only shows behind the sections that follow the flight. At
+   z-index -1 it sits over the page's own background and under everything in it. */
+canvas.lamp {
+  position: sticky; top: 0; z-index: -1; display: block; width: 100%;
+  height: 100vh; height: 100lvh; margin-bottom: -100vh; margin-bottom: -100lvh;
+  pointer-events: none; opacity: 0; transition: opacity .8s ease;
+}
+body.lamp-on canvas.lamp { opacity: 1; }
 .section { padding-block: clamp(72px, 7vw, 120px); scroll-margin-top: var(--nav-h); }
 .section + .section { border-top: 1px solid var(--hair); }
 .intro { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px 64px; align-items: end; margin-bottom: clamp(44px, 5vw, 72px); }
@@ -347,6 +356,12 @@ body.past-flight .sw-route, body.past-flight .sw-scrollbar, body.past-flight .sw
 
 /* Prices & rules */
 .prices { background: var(--velvet); }
+/* Over the lamp the solid panel becomes smoked glass. Phones get the tint without the
+   live blur, which costs too much over a moving layer several screens tall. */
+body.lamp-on .prices { background: rgba(26, 16, 18, .62); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); }
+@media (max-width: 860px), (hover: none) and (pointer: coarse) {
+  body.lamp-on .prices { background: rgba(26, 16, 18, .8); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
 .prices__grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(36px, 5vw, 80px); align-items: start; }
 .price-side { display: grid; gap: clamp(36px, 4vw, 56px); }
 .ptable { width: 100%; border-collapse: collapse; table-layout: fixed; font-variant-numeric: lining-nums tabular-nums; }
