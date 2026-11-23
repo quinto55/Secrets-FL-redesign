@@ -88,6 +88,16 @@
      - The still poster no longer shifts sideways (the CCF stage offset left a strip).
      - A resize keeps the flight at the same place (scroll scales with the new vh).
      - copyAt (per section): where in its leg a beat's words peak (default the middle).
+     - frames (per section): { url, count, duration } still frames of the leg, named
+       url + 000.webp, 001.webp, ... (tools/make-phone-frames.py). Portrait phones draw
+       them onto a canvas instead of seeking the clip: iPhone Safari seeks a <video>
+       slowly, so a scrubbed clip showed only a few frames per scene there and seemed to
+       jump from scene to scene. Drawing a picture has no seek, so every scroll step moves
+       the camera (Apple's own scroll-driven iPhone pages work this way). Frames load
+       coarse to fine (every 8th first), the nearest one is drawn until its neighbours
+       arrive, and two neighbours are blended by the scroll position in between. Legs
+       well off screen let go of their frames. Landscape phones, tablets wider than 4:5,
+       desktops, and any phone where the first frames fail to load keep the clips.
    ========================================================================== */
 
 function mountScrollWorld(container, config) {
@@ -108,6 +118,10 @@ function mountScrollWorld(container, config) {
   const DIP_W = config.dipScroll || 0.3;                // [Secrets] fade-to/from-black ramp (vh)
   const HOLD = Math.min(0.4, Math.max(0, config.copyHold || 0));   // [Secrets] copy plateau (see read())
   const PRELOAD = config.preload !== false && !reduce && !isMobile();  // [Secrets] fetch every clip at load
+  // [Secrets] Portrait phones draw still frames instead of seeking a clip (see `frames`).
+  // Read live, so turning the phone sideways switches to the clips and back.
+  let FRAMES_BROKEN = false;                            // set if frames will not load at all
+  const framesMode = () => !reduce && !FRAMES_BROKEN && isMobile() && window.innerWidth < window.innerHeight * 0.8;
   const LERP = reduce ? 1 : 0.18;                       // [Secrets] scroll easing per frame
   const N = SECTIONS.length;
   if (!N) return;
@@ -118,7 +132,7 @@ function mountScrollWorld(container, config) {
   // ---- build the interleaved segment chain: dive0, conn0, dive1, … diveN-1 ----
   const SEGMENTS = [];
   SECTIONS.forEach((s, i) => {
-    const dive = { kind: 'dive', si: i, clip: s.clip, clipM: s.clipMobile, still: s.still, stillM: s.stillMobile,
+    const dive = { kind: 'dive', si: i, clip: s.clip, clipM: s.clipMobile, still: s.still, stillM: s.stillMobile, frames: s.frames,
                    accent: s.accent, w: s.scroll || DIVE_W, linger: s.linger || 0 };
     SEGMENTS.push(dive);
     s._seg = dive;
@@ -178,6 +192,12 @@ function mountScrollWorld(container, config) {
     const poster = (isMobile() && s.stillM) ? s.stillM : s.still;
     if (poster) img.src = poster;
     scene.appendChild(img); stage.appendChild(scene);
+    // [Secrets] Canvas for the phone frames; hidden until it has drawn a frame.
+    s.fr = null; s.useF = false;
+    if (s.frames) {
+      s.canvas = el('canvas', 'sw-scene__frames'); scene.appendChild(s.canvas);
+      s.ctx = s.canvas.getContext('2d', { alpha: false });
+    }
     s.el = scene; s.img = img; s.video = null; s.hasClip = false;
     s.loading = false; s.ready = false; s.cur = 0; s.target = 0; s.visible = false;
   });
@@ -286,6 +306,98 @@ function mountScrollWorld(container, config) {
       });
   }
 
+  // [Secrets] Phone frames (see `frames` in the header). A leg asks for its frames once it
+  // is near; one shared queue keeps a few downloads going, always for the nearest leg
+  // first, and each leg fetches coarse to fine so it moves (roughly) almost at once.
+  const FR_PARALLEL = 6;
+  let frInflight = 0;
+  function wantFrames(s) {
+    if (s.fr || reduce) return;
+    // Within each pass, start from where the camera is now (frame 0 for a leg coming up;
+    // the middle after a jump into the middle), working outward.
+    const n = s.frames.count, at = clamp(s.target) * (n - 1), seen = new Uint8Array(n), order = [], pass = [];
+    [8, 4, 2, 1].forEach((step, p) => {
+      const ks = [];
+      for (let k = 0; k < n; k += step) if (!seen[k]) ks.push(k);
+      if (!seen[n - 1] && ks[ks.length - 1] !== n - 1) ks.push(n - 1);
+      ks.sort((a, b) => Math.abs(a - at) - Math.abs(b - at));
+      ks.forEach(k => { seen[k] = 1; order.push(k); pass.push(p); });
+    });
+    s.fr = { imgs: new Array(n), ok: new Uint8Array(n), order, pass, next: 0, got: 0, fails: 0, drawn: false, key: '' };
+    pumpFrames();
+  }
+  function pumpFrames() {
+    while (frInflight < FR_PARALLEL) {
+      // Coarsest pass first across every near leg (so both legs at a seam have their end
+      // frames), then the nearest leg.
+      let seg = null, best = Infinity;
+      for (let i = 0; i < NSEG; i++) {
+        const s = SEGMENTS[i];
+        if (!s.fr || s.fr.next >= s.fr.order.length) continue;
+        const d = ys < s.start ? s.start - ys : ys > s.end ? ys - s.end : 0;
+        const score = s.fr.pass[s.fr.next] * 1e7 + d;
+        if (score < best) { best = score; seg = s; }
+      }
+      if (!seg) return;
+      const f = seg.fr, k = f.order[f.next++], img = new Image();
+      frInflight++;
+      const done = (ok) => {
+        frInflight--;
+        if (seg.fr === f) {   // ignore a frame that arrives after its leg let go
+          if (ok) { f.imgs[k] = img; f.ok[k] = 1; f.got++; f.key = ''; }
+          else if (++f.fails >= 3 && !f.got) {
+            // The frames will not load here (an old phone without WebP, or offline):
+            // fall back to the clips everywhere.
+            FRAMES_BROKEN = true; dirty = true;
+          }
+        }
+        pumpFrames();
+      };
+      img.onload = () => { if (img.decode) img.decode().then(() => done(true), () => done(true)); else done(true); };
+      img.onerror = () => done(false);
+      img.src = seg.frames.url + String(k).padStart(3, '0') + '.webp';
+    }
+  }
+  function dropFrames(s) {
+    if (!s.fr) return;
+    s.fr = null;
+    s.el.classList.remove('has-frames');
+  }
+  // Draw the frame for the leg's scroll position, blended with its neighbour by how far
+  // the scroll is between the two. Until every frame is in, the nearest loaded ones stand
+  // in. Redraws only when the picture would change.
+  function drawFrames(s, sw, sh) {
+    const f = s.fr, n = s.frames.count;
+    const p = clamp(s.target) * (n - 1);
+    let a = Math.floor(p), b = Math.ceil(p);
+    while (a >= 0 && !f.ok[a]) a--;
+    while (b < n && !f.ok[b]) b++;
+    if (a < 0 && b >= n) return;
+    if (a < 0) a = b;
+    if (b >= n) b = a;
+    const w = b > a ? Math.round((p - a) / (b - a) * 32) / 32 : 0;
+    const key = a + ':' + b + ':' + w + ':' + sw + 'x' + sh;
+    if (key === f.key) return;
+    f.key = key;
+    const cv = s.canvas, A = f.imgs[a];
+    if (cv.width !== A.naturalWidth || cv.height !== A.naturalHeight) {
+      cv.width = A.naturalWidth; cv.height = A.naturalHeight; s.fitKey = '';
+    }
+    // Cover the scene like object-fit: cover, centred across and 44% down (the clips'
+    // framing on portrait phones). Done here rather than with CSS object-fit on a canvas.
+    const fk = sw + 'x' + sh;
+    if (s.fitKey !== fk) {
+      s.fitKey = fk;
+      const sc = Math.max(sw / cv.width, sh / cv.height), W = cv.width * sc, H = cv.height * sc;
+      Object.assign(cv.style, { width: W + 'px', height: H + 'px',
+        left: ((sw - W) / 2) + 'px', top: ((sh - H) * 0.44) + 'px' });
+    }
+    const ctx = s.ctx;
+    ctx.globalAlpha = 1; ctx.drawImage(A, 0, 0);
+    if (w > 0) { ctx.globalAlpha = w; ctx.drawImage(f.imgs[b], 0, 0); }
+    if (!f.drawn) { f.drawn = true; s.el.classList.add('has-frames'); }
+  }
+
   // [Secrets] Fetch and attach every clip at load, in flight order, one at a time (so the
   // first leg arrives first and fonts aren't stuck behind six parallel downloads).
   function preloadAll() {
@@ -308,9 +420,13 @@ function mountScrollWorld(container, config) {
 
     for (let i = 0; i < NSEG; i++) {
       const s = SEGMENTS[i];
-      if (y > s.start - 1.6 * vh && y < s.end + 1.6 * vh) loadClip(s);
+      // [Secrets] Portrait phones load the leg's frames (from a little further ahead, as a
+      // flick covers more ground); everything else loads the clip.
       const local = clamp((y - s.start) / (s.end - s.start), 0, 1);
       s.target = s.linger ? lingerEase(local, s.linger) : local;
+      const useF = !!s.frames && framesMode();
+      if (useF !== s.useF) { s.useF = useF; s.el.classList.toggle('sw-scene--frames', useF); if (!useF) dropFrames(s); }
+      if (y > s.start - (useF ? 2.5 : 1.6) * vh && y < s.end + 1.6 * vh) { if (useF) wantFrames(s); else loadClip(s); }
       // [Secrets] Stacking: later scenes always sit above earlier ones. A scene dissolves
       // in over [start - fade/2, start + fade/2] on top of the previous one, which stays
       // fully opaque underneath until the dissolve is done. Both clips are on their
@@ -328,7 +444,10 @@ function mountScrollWorld(container, config) {
       }
       s.el.style.opacity = op; s.visible = op > 0.001;
       s.el.style.zIndex = String(100 + i);
-      if (!s.hasClip || !s.ready) {
+      // [Secrets] A phone leg well off screen lets go of its frames (memory); they come
+      // back from the browser cache if the visitor scrolls back.
+      if (s.fr && !s.visible && (y < s.start - 3 * vh || y > s.end + 3 * vh)) dropFrames(s);
+      if (s.useF ? !(s.fr && s.fr.drawn) : (!s.hasClip || !s.ready)) {
         // Poster push-in. Scale 1 at the start matches the clip's first frame.
         s.img.style.transform = reduce ? 'none' : `scale(${(1 + local * 0.14).toFixed(3)})`;
       }
@@ -383,7 +502,7 @@ function mountScrollWorld(container, config) {
     scrollbarFill.style.transform = `scaleX(${clamp(y / (totalW * vh))})`;
     // [Secrets] Let the page follow the flight (the music): the current segment and how
     // far through its clip the camera is.
-    if (config.onRead) config.onRead({ index: ci, target: cur.target, duration: (cur.video && cur.video.duration) || 0 });
+    if (config.onRead) config.onRead({ index: ci, target: cur.target, duration: (cur.video && cur.video.duration) || (cur.frames && cur.frames.duration) || 0 });
     hint.style.opacity = clamp(1 - y / (0.5 * vh));
     if (particles) particles.style.transform = `translate3d(0, ${-y * 0.05}px, 0)`;
   }
@@ -398,10 +517,18 @@ function mountScrollWorld(container, config) {
       dirty = true;
     }
     if (dirty) { dirty = false; read(); }
+    // [Secrets] Phone frames: draw the frame for this scroll position on every visible leg.
+    let sw = 0, sh = 0;
+    for (let i = 0; i < NSEG; i++) {
+      const s = SEGMENTS[i];
+      if (!s.useF || !s.fr || !s.visible) continue;
+      if (!sw) { sw = stage.clientWidth; sh = stage.clientHeight; }
+      drawFrames(s, sw, sh);
+    }
     const eps = isMobile() ? 0.02 : 0.008;   // coarser seek step on phones = fewer decodes
     for (let i = 0; i < NSEG; i++) {
       const s = SEGMENTS[i];
-      if (!s.hasClip || !s.ready || !s.video) continue;
+      if (s.useF || !s.hasClip || !s.ready || !s.video) continue;
       // Never queue a seek while the decoder is still resolving the last one.
       // On phones a fast flick would otherwise pile up seeks and freeze the clip;
       // we simply seek to the latest target the moment it's free. Off-screen clips
@@ -510,7 +637,10 @@ function injectCSS() {
   .sw-stage{position:fixed;inset:0;z-index:10;pointer-events:none;}
   .sw-scene{position:absolute;inset:0;opacity:0;overflow:hidden;will-change:opacity;}
   .sw-scene__video,.sw-scene__still{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 42%;}
-  .sw-scene__still{will-change:transform;} .sw-scene.has-clip .sw-scene__still{opacity:0;} .sw-scene__video{z-index:1;}
+  .sw-scene__still{will-change:transform;} .sw-scene.has-clip:not(.sw-scene--frames) .sw-scene__still{opacity:0;} .sw-scene__video{z-index:1;}
+  .sw-scene__frames{position:absolute;left:0;top:0;z-index:1;visibility:hidden;}
+  .sw-scene--frames.has-frames .sw-scene__frames{visibility:visible;} .sw-scene--frames.has-frames .sw-scene__still{opacity:0;}
+  .sw-scene--frames .sw-scene__video{display:none;}
   .sw-dip{position:absolute;inset:0;z-index:200;background:#000;opacity:0;pointer-events:none;}
   .sw-copylayer{position:fixed;inset:0;z-index:20;pointer-events:none;}
   .sw-copylayer::before{content:"";position:absolute;inset:0;width:min(58vw,780px);background:linear-gradient(90deg,var(--sw-bg) 0%,color-mix(in srgb,var(--sw-bg) 82%,transparent) 34%,color-mix(in srgb,var(--sw-bg) 40%,transparent) 62%,transparent 100%);}

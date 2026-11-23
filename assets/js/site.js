@@ -113,6 +113,8 @@
   if (world && window.mountScrollWorld) {
     var beat = eventBeat();
     beat.still = 'assets/flight/K5.jpg'; beat.clip = 'assets/flight/L5.mp4'; beat.clipMobile = 'assets/flight/m/L5.mp4'; beat.linger = 0.25;
+    // Portrait phones draw still frames instead of seeking the clip (tools/make-phone-frames.py prints these).
+    beat.frames = { url: 'assets/flight/f/L5/', count: 121, duration: 10.0417 };
     window.mountScrollWorld(world, {
       nav: false,
       atmosphere: false,
@@ -129,6 +131,7 @@
         {
           id: 'arrival', label: 'Arrival', cls: 'beat--hero',
           still: 'assets/flight/K1.jpg', clip: 'assets/flight/L1.mp4', clipMobile: 'assets/flight/m/L1.mp4',
+          frames: { url: 'assets/flight/f/L1/', count: 121, duration: 10.0417 },
           scroll: 1.7,
           eyebrow: 'Kissimmee, Florida · Private membership resort · 21+',
           title: 'Florida’s adults-only hideaway.',
@@ -137,6 +140,7 @@
         {
           id: 'pool', label: 'The pool', cls: 'beat--pool',
           still: 'assets/flight/K2.jpg', clip: 'assets/flight/L2.mp4', clipMobile: 'assets/flight/m/L2.mp4',
+          frames: { url: 'assets/flight/f/L2/', count: 121, duration: 10.0417 },
           linger: 0.25,
           copyAt: 0.28,      // the words peak over the pool, and are gone before the roof
           eyebrow: 'The pool',
@@ -146,6 +150,7 @@
         {
           id: 'tiki', label: 'The tiki bar', cls: 'beat--tiki',
           still: 'assets/flight/K3.jpg', clip: 'assets/flight/L3.mp4', clipMobile: 'assets/flight/m/L3.mp4',
+          frames: { url: 'assets/flight/f/L3/', count: 121, duration: 10.0417 },
           linger: 0.25,
           eyebrow: 'The tiki bar',
           title: 'Then the lights go down.',
@@ -155,6 +160,7 @@
         {
           id: 'club', label: 'The nightclub', cls: 'beat--club',
           still: 'assets/flight/K4.jpg', clip: 'assets/flight/L4.mp4', clipMobile: 'assets/flight/m/L4.mp4',
+          frames: { url: 'assets/flight/f/L4/', count: 121, duration: 10.0417 },
           linger: 0.25,
           eyebrow: 'The nightclub',
           title: 'The party moves inside.',
@@ -164,6 +170,7 @@
         {
           id: 'suite', label: 'Your suite', cls: 'beat--suite',
           still: 'assets/flight/K7.jpg', clip: 'assets/flight/L6.mp4', clipMobile: 'assets/flight/m/L6.mp4',
+          frames: { url: 'assets/flight/f/L6/', count: 73, duration: 6.0417 },
           scroll: 2.0,       // a long, slow landing so the Book a Room moment holds
           eyebrow: 'Your suite',
           title: 'Stay the night. Stay the weekend.',
