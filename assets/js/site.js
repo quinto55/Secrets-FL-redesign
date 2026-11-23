@@ -110,12 +110,24 @@
      ------------------------------------------------------------------ */
   var world = document.getElementById('world');
   var flight = { index: 0, target: 0, duration: 0 };   // where the camera is (for the music, 3b)
+  // The tiki sweep, upright phones only. The tiki bar is one wide shot (bar group far left,
+  // table group far right, stage in the middle), and a phone shows only the middle quarter,
+  // which is an empty floor until the night crowd arrives. So the phone's view slides across
+  // the room with the scroll: from the stage to the bar group as the camera comes under the
+  // roof, across the stage to the tables while the light holds, and back to the centre as the
+  // lights drop. `x` is the view's centre across the shot, per frame, from `from`. The path
+  // runs straight through the join of the two legs, so it never stops there.
+  // Printed by tools/make-phone-frames.py (which also cuts the frames to match): do not edit by hand.
+  var SWEEP = {
+    L2: { from: 89, x: [0.5, 0.4975, 0.4904, 0.4793, 0.4646, 0.4469, 0.4268, 0.4048, 0.3814, 0.3572, 0.3328, 0.3086, 0.2852, 0.2632, 0.2431, 0.2254, 0.2107, 0.1996, 0.1925, 0.19, 0.1922, 0.1988, 0.2093, 0.2234, 0.2409, 0.2614, 0.2846, 0.3102, 0.3378, 0.3672, 0.398, 0.4299] },
+    L3: { from: 0, x: [0.4299, 0.4626, 0.4958, 0.5292, 0.5624, 0.5951, 0.627, 0.6578, 0.6872, 0.7148, 0.7404, 0.7636, 0.7841, 0.8016, 0.8157, 0.8262, 0.8328, 0.835, 0.8323, 0.8246, 0.8126, 0.7967, 0.7776, 0.7559, 0.7321, 0.7068, 0.6807, 0.6543, 0.6282, 0.6029, 0.5791, 0.5574, 0.5383, 0.5224, 0.5104, 0.5027, 0.5] }
+  };
   if (world && window.mountScrollWorld) {
     var beat = eventBeat();
     beat.still = 'assets/flight/K5.jpg'; beat.clip = 'assets/flight/L5.mp4'; beat.clipMobile = 'assets/flight/m/L5.mp4'; beat.linger = 0.25;
     // Portrait phones draw still frames instead of seeking the clip (tools/make-phone-frames.py prints these).
     beat.frames = { url: 'assets/flight/f/L5/', count: 121, duration: 10.0417 };
-    window.mountScrollWorld(world, {
+    window.__flight = window.mountScrollWorld(world, {   // the handle is only read by the checks in work/qa
       nav: false,
       atmosphere: false,
       hint: 'Scroll to fly in',
@@ -140,7 +152,10 @@
         {
           id: 'pool', label: 'The pool', cls: 'beat--pool',
           still: 'assets/flight/K2.jpg', clip: 'assets/flight/L2.mp4', clipMobile: 'assets/flight/m/L2.mp4',
-          frames: { url: 'assets/flight/f/L2/', count: 121, duration: 10.0417 },
+          frames: { url: 'assets/flight/f/L2/', count: 121, duration: 10.0417, pan: SWEEP.L2 },
+          // Phones: the arrival under the tiki roof gets more scroll, rising towards the join,
+          // so the camera eases to rest and the sweep is unhurried under a finger.
+          slow: [[0.70, 1], [0.78, 2.5], [1, 3.3]],
           linger: 0.25,
           copyAt: 0.28,      // the words peak over the pool, and are gone before the roof
           eyebrow: 'The pool',
@@ -150,7 +165,11 @@
         {
           id: 'tiki', label: 'The tiki bar', cls: 'beat--tiki',
           still: 'assets/flight/K3.jpg', clip: 'assets/flight/L3.mp4', clipMobile: 'assets/flight/m/L3.mp4',
-          frames: { url: 'assets/flight/f/L3/', count: 121, duration: 10.0417 },
+          frames: { url: 'assets/flight/f/L3/', count: 121, duration: 10.0417, pan: SWEEP.L3 },
+          // Phones: the same pace carries on through the join (3.3 on both sides), then back
+          // to normal once the lights are down and the view is centred again.
+          slow: [[0, 3.3], [0.30, 2.2], [0.38, 1]],
+          copyAtPhone: 0.58,   // phones: the words wait for the sweep, and come in while the lights are down
           linger: 0.25,
           eyebrow: 'The tiki bar',
           title: 'Then the lights go down.',

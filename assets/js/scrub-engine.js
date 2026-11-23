@@ -98,9 +98,25 @@
        arrive, and two neighbours are blended by the scroll position in between. Legs
        well off screen let go of their frames. Landscape phones, tablets wider than 4:5,
        desktops, and any phone where the first frames fail to load keep the clips.
+     - frames.pan (per section): { from, x: [...] } slides the phone's view across a shot
+       that is wider than the phone: x is where the view's centre sits across the full
+       width (0..1) at frame `from`, `from` + 1, ... (0.5 outside the list). The frames in
+       that range are files named NNNw.webp, cut wider than the view and centred on their
+       own x, and each is drawn slid to the exact in-between position, so the move is a
+       true slide rather than a cross-fade of two shifted pictures. Frames mode only.
+     - slow (per section): [[clipFraction, factor], ...] gives a stretch of the clip that
+       many times more scroll on phones in frames mode (eased between the points), so a
+       pan or a busy moment is unhurried under a finger. The leg gets longer by the same
+       amount; captions keep their timing against the clip. copyAtPhone is copyAt for
+       frames mode.
    ========================================================================== */
 
 function mountScrollWorld(container, config) {
+  // [Secrets] Reduce Motion (2026-11-23, the owner's choice): the flight runs anyway. It
+  // only moves when the visitor scrolls, and the page keeps its Skip link on screen. The
+  // setting still switches off what moves by itself: the scroll hint's pulse, the
+  // particles, and the glide of a route-dot jump. (It used to load neither clips nor
+  // frames, and the scenes faded between stills.)
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Phone detection. `coarse` is captured once (input type doesn't change mid-session);
   // the ≤860px query is read live via isMobile() so a desktop resize/DevTools toggle
@@ -117,12 +133,12 @@ function mountScrollWorld(container, config) {
   const DIPS = config.dips || [];                       // [Secrets] seams that dip through black
   const DIP_W = config.dipScroll || 0.3;                // [Secrets] fade-to/from-black ramp (vh)
   const HOLD = Math.min(0.4, Math.max(0, config.copyHold || 0));   // [Secrets] copy plateau (see read())
-  const PRELOAD = config.preload !== false && !reduce && !isMobile();  // [Secrets] fetch every clip at load
+  const PRELOAD = config.preload !== false && !isMobile();  // [Secrets] fetch every clip at load
   // [Secrets] Portrait phones draw still frames instead of seeking a clip (see `frames`).
   // Read live, so turning the phone sideways switches to the clips and back.
   let FRAMES_BROKEN = false;                            // set if frames will not load at all
-  const framesMode = () => !reduce && !FRAMES_BROKEN && isMobile() && window.innerWidth < window.innerHeight * 0.8;
-  const LERP = reduce ? 1 : 0.18;                       // [Secrets] scroll easing per frame
+  const framesMode = () => !FRAMES_BROKEN && isMobile() && window.innerWidth < window.innerHeight * 0.8;
+  const LERP = 0.18;                                    // [Secrets] scroll easing per frame
   const N = SECTIONS.length;
   if (!N) return;
 
@@ -133,7 +149,7 @@ function mountScrollWorld(container, config) {
   const SEGMENTS = [];
   SECTIONS.forEach((s, i) => {
     const dive = { kind: 'dive', si: i, clip: s.clip, clipM: s.clipMobile, still: s.still, stillM: s.stillMobile, frames: s.frames,
-                   accent: s.accent, w: s.scroll || DIVE_W, linger: s.linger || 0 };
+                   accent: s.accent, w: s.scroll || DIVE_W, linger: s.linger || 0, slow: s.slow };
     SEGMENTS.push(dive);
     s._seg = dive;
     // A connector is optional: if connectors[i] is falsy, the two dives simply
@@ -196,6 +212,8 @@ function mountScrollWorld(container, config) {
     s.fr = null; s.useF = false;
     if (s.frames) {
       s.canvas = el('canvas', 'sw-scene__frames'); scene.appendChild(s.canvas);
+      const size = s.frames.size || [540, 960];
+      s.canvas.width = size[0]; s.canvas.height = size[1];
       s.ctx = s.canvas.getContext('2d', { alpha: false });
     }
     s.el = scene; s.img = img; s.video = null; s.hasClip = false;
@@ -234,6 +252,34 @@ function mountScrollWorld(container, config) {
   // (where the copy peaks) and moves quicker near the seams. L=0 linear, L=1 full
   // mid-scene pause. f(0)=0, f(1)=1 always, so seam frames are untouched.
   const lingerEase = (x, L) => { L = clamp(L); const c = x - 0.5; return (1 - L) * x + L * (4 * c * c * c + 0.5); };
+  // [Secrets] Phone time-stretch (`slow`). The leg's scroll is re-measured so that a step
+  // of the original scroll at clip position t costs factor(t) times as much; `len` is how
+  // much longer the leg gets, and unslow() turns a position along the stretched leg back
+  // into the original one (which linger, the clip and the captions are all tuned in).
+  function buildSlow(seg) {
+    const K = seg.slow, n = 512, at = new Float32Array(n + 1);
+    const factor = t => {
+      if (t <= K[0][0]) return K[0][1];
+      for (let i = 1; i < K.length; i++) {
+        if (t <= K[i][0]) return K[i - 1][1] + (K[i][1] - K[i - 1][1]) * smooth((t - K[i - 1][0]) / (K[i][0] - K[i - 1][0]));
+      }
+      return K[K.length - 1][1];
+    };
+    let sum = 0;
+    for (let i = 1; i <= n; i++) {
+      const x = (i - 0.5) / n;
+      sum += factor(seg.linger ? lingerEase(x, seg.linger) : x) / n;
+      at[i] = sum;
+    }
+    return { len: sum, at, n };
+  }
+  function unslow(lut, q) {
+    const want = clamp(q) * lut.len, at = lut.at;
+    let lo = 0, hi = lut.n;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (at[mid] <= want) lo = mid; else hi = mid; }
+    return (lo + (want - at[lo]) / ((at[hi] - at[lo]) || 1)) / lut.n;
+  }
+  SEGMENTS.forEach(s => { s.slowLUT = (s.slow && s.slow.length && s.frames) ? buildSlow(s) : null; s.stretch = null; s.x = 0; });
   let vh = window.innerHeight, totalW = 0, activeIndex = -1;
   let laidOutW = window.innerWidth;   // width the current layout was computed at (see onResize)
   // [Secrets] The one eased scroll position the whole flight is drawn from (see raf()).
@@ -244,14 +290,20 @@ function mountScrollWorld(container, config) {
     vh = window.innerHeight;
     laidOutW = window.innerWidth;
     let off = 0;
-    SEGMENTS.forEach(s => { s.start = off * vh; off += s.w; s.end = off * vh; });
+    // [Secrets] In frames mode a leg with `slow` is that much longer.
+    const fm = framesMode();
+    SEGMENTS.forEach(s => {
+      s.stretch = fm ? s.slowLUT : null;
+      s.start = off * vh; off += s.w * (s.stretch ? s.stretch.len : 1); s.end = off * vh;
+    });
     totalW = off;
     track.style.height = (totalW * vh + vh) + 'px';   // +1vh so the last flight completes
     // [Secrets] Keep the viewer at the same moment of the flight when the height changes
     // (F11, a window resize): every position on the track scales with vh.
-    if (oldTotal && oldVh !== vh && y0 > 0) {
-      const oldTrack = (oldTotal + 1) * oldVh;
-      const ny = y0 < oldTrack ? y0 * vh / oldVh : y0 + (totalW + 1) * (vh - oldVh);
+    // (Also when the flight's length changes: a phone turned between upright and sideways.)
+    if (oldTotal && (oldVh !== vh || oldTotal !== totalW) && y0 > 0) {
+      const oldTrack = (oldTotal + 1) * oldVh, newTrack = (totalW + 1) * vh;
+      const ny = y0 < oldTrack ? y0 * newTrack / oldTrack : y0 + newTrack - oldTrack;
       window.scrollTo(0, ny);
       ys = ny;
     }
@@ -265,9 +317,7 @@ function mountScrollWorld(container, config) {
   }
 
   function loadClip(s, done) {
-    // Under prefers-reduced-motion we never load the clips at all — the stills stay up
-    // and simply cross-dissolve as you scroll. No scrubbed video motion, no decode cost.
-    if (reduce || s.loading || !s.clip) { if (done) done(); return; }
+    if (s.loading || !s.clip) { if (done) done(); return; }
     s.loading = true;
     // Serve the lighter mobile encode on phones when one was provided.
     const url = (isMobile() && s.clipM) ? s.clipM : s.clip;
@@ -312,7 +362,7 @@ function mountScrollWorld(container, config) {
   const FR_PARALLEL = 6;
   let frInflight = 0;
   function wantFrames(s) {
-    if (s.fr || reduce) return;
+    if (s.fr) return;
     // Within each pass, start from where the camera is now (frame 0 for a leg coming up;
     // the middle after a jump into the middle), working outward.
     const n = s.frames.count, at = clamp(s.target) * (n - 1), seen = new Uint8Array(n), order = [], pass = [];
@@ -348,14 +398,14 @@ function mountScrollWorld(container, config) {
           else if (++f.fails >= 3 && !f.got) {
             // The frames will not load here (an old phone without WebP, or offline):
             // fall back to the clips everywhere.
-            FRAMES_BROKEN = true; dirty = true;
+            FRAMES_BROKEN = true; layout();
           }
         }
         pumpFrames();
       };
       img.onload = () => { if (img.decode) img.decode().then(() => done(true), () => done(true)); else done(true); };
       img.onerror = () => done(false);
-      img.src = seg.frames.url + String(k).padStart(3, '0') + '.webp';
+      img.src = seg.frames.url + String(k).padStart(3, '0') + (inPan(seg.frames, k) ? 'w' : '') + '.webp';
     }
   }
   function dropFrames(s) {
@@ -366,6 +416,18 @@ function mountScrollWorld(container, config) {
   // Draw the frame for the leg's scroll position, blended with its neighbour by how far
   // the scroll is between the two. Until every frame is in, the nearest loaded ones stand
   // in. Redraws only when the picture would change.
+  // [Secrets] The sweep (`frames.pan`): where the view's centre is across the full-width
+  // shot at frame position p, and whether frame k is one of the wide-cut sweep frames.
+  function panAt(F, p) {
+    const P = F.pan;
+    if (!P) return 0.5;
+    const q = p - P.from, last = P.x.length - 1;
+    if (q <= 0) return P.x[0];
+    if (q >= last) return P.x[last];
+    const i = Math.floor(q);
+    return P.x[i] + (P.x[i + 1] - P.x[i]) * (q - i);
+  }
+  function inPan(F, k) { return !!F.pan && k >= F.pan.from && k < F.pan.from + F.pan.x.length; }
   function drawFrames(s, sw, sh) {
     const f = s.fr, n = s.frames.count;
     const p = clamp(s.target) * (n - 1);
@@ -376,13 +438,11 @@ function mountScrollWorld(container, config) {
     if (a < 0) a = b;
     if (b >= n) b = a;
     const w = b > a ? Math.round((p - a) / (b - a) * 32) / 32 : 0;
-    const key = a + ':' + b + ':' + w + ':' + sw + 'x' + sh;
+    const cx = panAt(s.frames, p);
+    const key = a + ':' + b + ':' + w + ':' + Math.round(cx * 8000) + ':' + sw + 'x' + sh;
     if (key === f.key) return;
     f.key = key;
-    const cv = s.canvas, A = f.imgs[a];
-    if (cv.width !== A.naturalWidth || cv.height !== A.naturalHeight) {
-      cv.width = A.naturalWidth; cv.height = A.naturalHeight; s.fitKey = '';
-    }
+    const cv = s.canvas;
     // Cover the scene like object-fit: cover, centred across and 44% down (the clips'
     // framing on portrait phones). Done here rather than with CSS object-fit on a canvas.
     const fk = sw + 'x' + sh;
@@ -393,8 +453,19 @@ function mountScrollWorld(container, config) {
         left: ((sw - W) / 2) + 'px', top: ((sh - H) * 0.44) + 'px' });
     }
     const ctx = s.ctx;
-    ctx.globalAlpha = 1; ctx.drawImage(A, 0, 0);
-    if (w > 0) { ctx.globalAlpha = w; ctx.drawImage(f.imgs[b], 0, 0); }
+    // A sweep frame is wider than the canvas and was cut centred on its own sweep position
+    // (kept inside the shot): slide it by the difference to where the view is now. Until
+    // its neighbours load, a stand-in can only slide as far as its margin.
+    const fullW = cv.height * (s.frames.aspect || 16 / 9);
+    const put = (k) => {
+      const img = f.imgs[k], extra = img.naturalWidth - cv.width;
+      if (extra <= 0) { ctx.drawImage(img, 0, 0); return; }
+      const half = img.naturalWidth / 2 / fullW;
+      const own = clamp(panAt(s.frames, k), half, 1 - half);
+      ctx.drawImage(img, clamp(extra / 2 + (cx - own) * fullW, 0, extra), 0, cv.width, cv.height, 0, 0, cv.width, cv.height);
+    };
+    ctx.globalAlpha = 1; put(a);
+    if (w > 0) { ctx.globalAlpha = w; put(b); }
     if (!f.drawn) { f.drawn = true; s.el.classList.add('has-frames'); }
   }
 
@@ -423,7 +494,8 @@ function mountScrollWorld(container, config) {
       // [Secrets] Portrait phones load the leg's frames (from a little further ahead, as a
       // flick covers more ground); everything else loads the clip.
       const local = clamp((y - s.start) / (s.end - s.start), 0, 1);
-      s.target = s.linger ? lingerEase(local, s.linger) : local;
+      s.x = s.stretch ? unslow(s.stretch, local) : local;   // [Secrets] position along the leg as tuned (before `slow`)
+      s.target = s.linger ? lingerEase(s.x, s.linger) : s.x;
       const useF = !!s.frames && framesMode();
       if (useF !== s.useF) { s.useF = useF; s.el.classList.toggle('sw-scene--frames', useF); if (!useF) dropFrames(s); }
       if (y > s.start - (useF ? 2.5 : 1.6) * vh && y < s.end + 1.6 * vh) { if (useF) wantFrames(s); else loadClip(s); }
@@ -433,10 +505,14 @@ function mountScrollWorld(container, config) {
       // shared seam frame there, so the dissolve is invisible with frame-matched legs.
       let op;
       const dipIn = DIP_IN.has(i), dipOut = DIP_IN.has(i + 1);
+      // [Secrets] A leg that starts mid-sweep (frames.pan from its first frame) dissolves in
+      // over a sliver instead: across a normal dissolve the incoming leg waits on its first
+      // frame while the outgoing one is still sliding, which shows as a faint double image.
+      const fin = (s.useF && s.frames.pan && s.frames.pan.from === 0) ? fade * 0.12 : fade, hin = fin / 2;
       if (y < s.start) {
-        op = (i === 0) ? 1 : dipIn ? 0 : (y > s.start - half ? smooth((y - (s.start - half)) / fade) : 0);
+        op = (i === 0) ? 1 : dipIn ? 0 : (y > s.start - hin ? smooth((y - (s.start - hin)) / fin) : 0);
       } else if (y <= s.end) {
-        op = (i === 0 || dipIn) ? 1 : smooth((y - (s.start - half)) / fade);
+        op = (i === 0 || dipIn) ? 1 : smooth((y - (s.start - hin)) / fin);
       } else if (i === NSEG - 1) {
         op = config.holdLast ? 1 : smooth(1 - (y - s.end) / fade);   // [Secrets] hold the landing frame
       } else {
@@ -449,13 +525,13 @@ function mountScrollWorld(container, config) {
       if (s.fr && !s.visible && (y < s.start - 3 * vh || y > s.end + 3 * vh)) dropFrames(s);
       if (s.useF ? !(s.fr && s.fr.drawn) : (!s.hasClip || !s.ready)) {
         // Poster push-in. Scale 1 at the start matches the clip's first frame.
-        s.img.style.transform = reduce ? 'none' : `scale(${(1 + local * 0.14).toFixed(3)})`;
+        s.img.style.transform = `scale(${(1 + local * 0.14).toFixed(3)})`;
       }
     }
 
     for (let i = 0; i < N; i++) {
       const seg = SECTIONS[i]._seg;
-      const pr = clamp((y - seg.start) / (seg.end - seg.start), 0, 1);
+      const pr = seg.x;   // [Secrets] the leg position as tuned, so `slow` does not move the words
       const before = y < seg.start, after = y > seg.end;
       let cop;
       if (i === 0) cop = after ? 0 : smooth(1 - pr / 0.62);            // greets on landing
@@ -465,13 +541,14 @@ function mountScrollWorld(container, config) {
       // [Secrets] copyAt (0.1..0.9, default 0.5) moves a beat's words earlier or later in its
       // leg, for a leg whose subject is on screen at the start rather than the middle.
       else {
-        const ctr = SECTIONS[i].copyAt != null ? clamp(SECTIONS[i].copyAt, 0.1, 0.9) : 0.5;
+        const at = (seg.useF && SECTIONS[i].copyAtPhone != null) ? SECTIONS[i].copyAtPhone : SECTIONS[i].copyAt;
+        const ctr = at != null ? clamp(at, 0.1, 0.9) : 0.5;
         const hw = Math.min(ctr, 1 - ctr), hold = HOLD * hw / 0.5;
         cop = (before || after) ? 0 : smooth(1 - Math.max(0, Math.abs(pr - ctr) - hold) / (hw - hold));
       }
       const c = copies[i];
       c.style.opacity = cop;
-      c.style.transform = reduce ? 'none' : `translateY(${(0.5 - pr) * 4}vh)`;
+      c.style.transform = `translateY(${(0.5 - pr) * 4}vh)`;
       c.style.pointerEvents = cop > 0.5 ? 'auto' : 'none';
       // [Secrets] An invisible beat must not be clickable or focusable.
       c.style.visibility = cop < 0.01 ? 'hidden' : '';
@@ -577,6 +654,8 @@ function mountScrollWorld(container, config) {
   layout();
   if (PRELOAD) preloadAll();
   requestAnimationFrame(raf);
+  // [Secrets] Where each leg starts and ends on the page right now (for checks and tools).
+  const api = { legs: () => SEGMENTS.map(s => ({ start: s.start, end: s.end })) };
 
   // ---- helpers ----
   function el(tag, cls) { const n = document.createElement(tag); if (cls) n.className = cls; return n; }
@@ -588,6 +667,7 @@ function mountScrollWorld(container, config) {
     if (cta.secondary) h += `<a class="sw-btn sw-btn--ghost" href="${esc(cta.secondary.href || '#')}">${esc(cta.secondary.label)}</a>`;
     return h;
   }
+  return api;
 }
 
 function seedParticles(host, reduce) {
