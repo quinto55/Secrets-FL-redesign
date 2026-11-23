@@ -270,7 +270,7 @@ body.past-flight .sw-route, body.past-flight .sw-scrollbar, body.past-flight .sw
 .section + .section { border-top: 1px solid var(--hair); }
 .intro { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px 64px; align-items: end; margin-bottom: clamp(44px, 5vw, 72px); }
 /* One grade for every real photo after the flight, so they sit together under the film. */
-.stay__photo img, .stay__strip img, .vip__item img, .swinkster__photo img, .contact__photo img, .condos__renders img {
+.stay__photo img, .stay__strip img, .vip__item img, .swinkster__photo img, .contact__photo img {
   filter: saturate(.82) contrast(1.06) brightness(.9) sepia(.08);
 }
 
@@ -377,26 +377,7 @@ body.past-flight .sw-route, body.past-flight .sw-scrollbar, body.past-flight .sw
 .rules__list li { color: var(--linen); font-size: 1rem; padding-top: 18px; border-top: 1px solid var(--hair); }
 .rules__list strong { color: var(--ivory); font-weight: 500; display: block; font-family: var(--serif); font-size: 1.25rem; margin-bottom: 4px; }
 
-/* Secrets II */
-.condos__grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(36px, 5vw, 96px); align-items: start; }
-.condos__text .lead { margin-top: 22px; }
-.condos__email { margin: 16px 0 0; color: var(--linen); }
-.terms { margin: 0; }
-.terms div { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: 4px 24px; padding: 20px 0; border-top: 1px solid var(--hair); }
-.terms div:last-child { border-bottom: 1px solid var(--hair); }
-.terms dt { font-size: .9rem; color: var(--smoke); padding-top: .55em; }
-.terms dd { margin: 0; font-family: var(--serif); font-size: clamp(1.6rem, 2.2vw, 2.15rem); line-height: 1.12; }
-.terms dd span { display: block; font-family: var(--sans); font-size: .95rem; line-height: 1.55; color: var(--linen); margin-top: 6px; }
 /* The renderings are only 845px wide: shown side by side, never stretched full-bleed. */
-.condos__renders { display: grid; grid-template-columns: repeat(2, minmax(0, 680px)); justify-content: start; gap: clamp(16px, 2vw, 32px); margin-top: clamp(48px, 5vw, 80px); }
-.condos__renders figure { margin: 0; }
-.condos__renders img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
-.condos__renders figcaption { font-size: .82rem; color: var(--smoke); margin-top: 10px; }
-.condos__legal { margin-top: clamp(32px, 3vw, 48px); font-size: .9rem; color: var(--smoke); max-width: 60em; }
-.condos__legal summary { cursor: pointer; color: var(--linen); text-decoration: underline; text-decoration-color: rgba(206, 20, 23, .85); text-underline-offset: .28em; }
-.condos__disclaimer { margin-top: 14px; }
-.condos__disclaimer p { margin: 0 0 10px; line-height: 1.6; }
-.condos__disclaimer strong { color: var(--linen); font-weight: 500; }
 
 /* Club Swinkster */
 .swinkster__grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(36px, 5vw, 96px); align-items: center; }
@@ -550,7 +531,7 @@ body.past-flight .skipflight, body.menu-open .skipflight { opacity: 0; visibilit
   .footer__cols { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 1080px) {
-  .intro, .events__grid, .prices__grid, .condos__grid, .contact__grid { grid-template-columns: minmax(0, 1fr); }
+  .intro, .events__grid, .prices__grid, .contact__grid { grid-template-columns: minmax(0, 1fr); }
   .stay__grid, .swinkster__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 @media (max-width: 860px) {
@@ -574,9 +555,6 @@ body.past-flight .skipflight, body.menu-open .skipflight { opacity: 0; visibilit
   .vip__item + .vip__item::before { display: none; }
   .rules__list { grid-template-columns: minmax(0, 1fr); }
   .swinkster__cols { grid-template-columns: minmax(0, 1fr); }
-  .terms div { grid-template-columns: minmax(0, 1fr); }
-  .terms dt { padding-top: 0; }
-  .condos__renders { grid-template-columns: minmax(0, 1fr); }
   .agenda__item { grid-template-columns: 56px minmax(0, 1fr); }
   .agenda__price { grid-column: 2; text-align: left; }
   .agenda__nights { grid-template-columns: minmax(0, 1fr); }
