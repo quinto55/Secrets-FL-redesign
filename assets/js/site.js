@@ -621,10 +621,97 @@
     update();
   }
 
+  /* ------------------------------------------------------------------
+     9. Phones: fold the long lists (2026-11-23, Anthony's "option 4").
+        After the flight a phone had 18 screens of lists in one column.
+        On the phone layout only: "Coming up" shows three events, "Every
+        week" shows today, Stay keeps its first fact, and the price
+        tables, extras and house rules become rows that open on a tap.
+        The cost calculator stays open (it reads the tables whether or
+        not they are showing). Widening past the phone layout puts
+        everything back exactly as it was; without this script nothing
+        is folded. The look is in site.css ("fold-away lists").
+     ------------------------------------------------------------------ */
+  var phoneMQ = window.matchMedia('(max-width: 860px)');
+  var unfold = [], foldSeq = 0;
+  function foldId(el) { if (!el.id) el.id = 'fold-' + (++foldSeq); return el.id; }
+  function setFolded(els, folded) {
+    els.forEach(function (el) { if (folded) el.setAttribute('data-folded', ''); else el.removeAttribute('data-folded'); });
+  }
+  // One button after a list: "Show all 8 events" / "Show fewer events".
+  function foldMore(items, after, closed, open) {
+    if (!items.length || !after) return;
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'fold-more';
+    b.setAttribute('aria-controls', items.map(foldId).join(' '));
+    function set(isOpen) { setFolded(items, !isOpen); b.setAttribute('aria-expanded', String(isOpen)); b.textContent = isOpen ? open : closed; }
+    b.addEventListener('click', function () {
+      var isOpen = b.getAttribute('aria-expanded') !== 'true';
+      set(isOpen);
+      // Folding a long list back shortens the page above the button: keep the button in view.
+      if (!isOpen) { var r = b.getBoundingClientRect(); if (r.top < nav.offsetHeight || r.bottom > window.innerHeight) window.scrollBy(0, r.top - window.innerHeight * 0.4); }
+    });
+    after.parentNode.insertBefore(b, after.nextSibling);
+    set(false);
+    unfold.push(function () { setFolded(items, false); if (b.parentNode) b.parentNode.removeChild(b); });
+  }
+  // A heading that opens and shuts what follows it. The button goes inside the heading.
+  function foldHead(h3, body) {
+    if (!h3 || !body.length) return;
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'fold-head';
+    b.setAttribute('aria-controls', body.map(foldId).join(' '));
+    var label = document.createElement('span');           // one piece, so the + sits alone at the right
+    while (h3.firstChild) label.appendChild(h3.firstChild);
+    b.appendChild(label); h3.appendChild(b); h3.classList.add('is-fold');
+    function set(isOpen) { setFolded(body, !isOpen); b.setAttribute('aria-expanded', String(isOpen)); }
+    b.addEventListener('click', function () { set(b.getAttribute('aria-expanded') !== 'true'); });
+    set(false);
+    unfold.push(function () {
+      setFolded(body, false);
+      while (label.firstChild) h3.insertBefore(label.firstChild, b);
+      h3.removeChild(b); h3.classList.remove('is-fold');
+    });
+  }
+  function childrenBut(el, skip) { return Array.prototype.filter.call(el.children, function (c) { return skip.indexOf(c) < 0; }); }
+  function foldPhone() {
+    if (unfold.length) return;
+    var agenda = document.getElementById('agenda');
+    if (agenda) {
+      var ev = Array.prototype.slice.call(agenda.children);
+      if (ev.length > 4) foldMore(ev.slice(3), agenda, 'Show all ' + ev.length + ' events', 'Show fewer events');
+    }
+    var weekly = document.getElementById('weekly');
+    if (weekly) {
+      var days = Array.prototype.slice.call(weekly.children);
+      var rest = days.filter(function (li) { return !li.classList.contains('is-today'); });
+      if (rest.length < days.length) foldMore(rest, weekly, 'Show the whole week', 'Show today only');
+    }
+    var facts = document.querySelector('.stay .facts');
+    if (facts && facts.children.length > 2) foldMore(Array.prototype.slice.call(facts.children, 1), facts, 'Good to know before you book', 'Show less');
+    Array.prototype.forEach.call(document.querySelectorAll('.prices .price-block'), function (blk) {
+      var h3 = childrenBut(blk, []).filter(function (c) { return c.classList.contains('h3'); })[0];
+      var ex = blk.querySelector('.extras');
+      foldHead(h3, childrenBut(blk, [h3, ex]));
+    });
+    ['.prices .extras', '.prices .rules'].forEach(function (sel) {
+      var box = document.querySelector(sel), h3 = box && box.querySelector('.h3');
+      if (h3) foldHead(h3, childrenBut(box, [h3]));
+    });
+    document.documentElement.classList.add('folds');
+  }
+  function unfoldAll() {
+    while (unfold.length) unfold.pop()();
+    document.documentElement.classList.remove('folds');
+  }
+  function syncFolds() { if (phoneMQ.matches) foldPhone(); else unfoldAll(); }
+
   renderAgenda();
   setupCost();
   renderWeekly();
   markTonight();
+  syncFolds();
+  if (phoneMQ.addEventListener) phoneMQ.addEventListener('change', syncFolds); else if (phoneMQ.addListener) phoneMQ.addListener(syncFolds);
   fitWeekly();
   window.addEventListener('resize', fitWeekly);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitWeekly);

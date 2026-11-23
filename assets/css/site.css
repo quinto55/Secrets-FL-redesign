@@ -624,3 +624,53 @@ body.past-flight .skipflight, body.menu-open .skipflight { opacity: 0; visibilit
   .footer { padding-bottom: calc(48px + 64px + env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) { .actionbar, .menu { transition: none; } }
+
+/* ---------- phones: title cards and fold-away lists (2026-11-23) ----------
+   On a phone the page after the flight was one 18-screen column with only a hairline
+   between sections. Anthony chose "option 4" from the mock-ups, for the phone view only:
+   every section opens on a picture with its name over it, and the long lists fold shut.
+   Laptops are untouched: everything here is inside the 860 px phone layout. */
+@media (max-width: 860px) {
+  /* Title cards. The heading itself becomes the card (full width, name at its foot), so
+     nothing moves in the markup and screen readers still meet a plain heading. The
+     pictures are small crops from tools/make-phone-cards.py. */
+  .section { padding-top: 0; }
+  .section + .section { border-top: 0; }
+  .section .h2 {
+    --card-shade: linear-gradient(180deg, rgba(15, 10, 11, .18) 0%, rgba(15, 10, 11, .08) 28%, rgba(15, 10, 11, .62) 58%, rgba(15, 10, 11, .98) 100%);
+    display: flex; flex-direction: column; justify-content: flex-end;
+    min-height: clamp(210px, 64vw, 330px);
+    margin-inline: calc(-1 * var(--gutter)); padding: 0 var(--gutter) 6px;
+    font-size: clamp(2.5rem, 11.5vw, 3.3rem);
+    background: var(--velvet) center / cover no-repeat;
+  }
+  .section .h2::before { content: ""; flex: none; width: 44px; height: 3px; margin-bottom: 16px; background: var(--red); }
+  .events .h2 { background-image: var(--card-shade), url("../img/card-events.jpg"); }
+  .stay .h2 { background-image: var(--card-shade), url("../img/card-stay.jpg"); background-position: center 60%; }
+  .vip .h2 { background-image: var(--card-shade), url("../img/card-vip.jpg"); }
+  .prices .h2 { background-image: var(--card-shade), url("../img/card-prices.jpg"); }
+  .swinkster .h2 { background-image: var(--card-shade), url("../img/card-swinkster.jpg"); background-position: center 35%; }
+  .contact .h2 { background-image: var(--card-shade), url("../img/card-contact.jpg"); }
+  /* Stay and Swinkster open on their own photo, which is now the card. */
+  .stay__photo, .swinkster__photo { display: none; }
+  .intro { margin-bottom: 36px; }
+
+  /* Fold-away lists (assets/js/site.js, section 9). Without the script nothing is folded. */
+  .page [data-folded] { display: none !important; }
+  .fold-more, .fold-head {
+    display: flex; justify-content: space-between; width: 100%; margin: 0; background: none; border: 0; border-radius: 0;
+    color: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .fold-more { align-items: center; padding: 17px 0; border-bottom: 1px solid var(--hair); color: var(--ivory); font: 500 1rem/1.2 var(--sans); }
+  .fold-head { align-items: baseline; padding: 20px 0; border-top: 1px solid var(--hair); font: inherit; }
+  .fold-more::after, .fold-head::after { content: "+"; flex: none; margin-left: 16px; font: 300 1.65rem/1 var(--sans); color: var(--red); }
+  .fold-more[aria-expanded="true"]::after, .fold-head[aria-expanded="true"]::after { content: "\2212"; }
+  .h3.is-fold { margin: 0; }
+  /* The five folded blocks under Prices sit together as one list of rows. */
+  .folds .prices__grid, .folds .price-side { gap: 0; }
+  .folds .prices .price-block, .folds .prices .extras, .folds .prices .rules { margin-top: 0; padding-top: 0; border-top: 0; }
+  .folds .prices .rules { border-bottom: 1px solid var(--hair); }
+  .folds .prices .fold-head[aria-expanded="true"] { padding-bottom: 8px; }
+  .folds .prices .price-block > .fine, .folds .prices .extras__list, .folds .prices .rules > .more, .folds .prices .ptable--compact { margin-bottom: 26px; }
+}
+
